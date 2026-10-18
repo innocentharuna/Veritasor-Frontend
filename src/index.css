@@ -4413,9 +4413,6 @@ input {
   .mfa-learn-trigger {
     transition: none;
   }
-} {
-  font-size: 0.83rem;
-  color: var(--muted);
 }
 
 /* File upload */
