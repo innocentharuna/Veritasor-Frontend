@@ -6,13 +6,16 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import type { Location } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import { useToast } from "../components/ToastContext";
 import MfaMethodChooser, {
   type MfaMethod,
 } from "../components/MfaMethodChooser";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { useAuth } from "../auth/AuthContext";
+import { safeNextPath } from "../auth/RequireAuth";
 import SubmitButton, { SUBMIT_DEMO_MS } from "../components/SubmitButton";
 import {
   verifyRecoveryCode,
@@ -104,7 +107,7 @@ function getMethodDefinition(
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function CredentialsState({ onContinue }: { onContinue: () => void }) {
+function CredentialsState({ onContinue }: { onContinue: (email: string) => void }) {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -167,7 +170,7 @@ function CredentialsState({ onContinue }: { onContinue: () => void }) {
     submitTimerRef.current = window.setTimeout(() => {
       submitTimerRef.current = null;
       setIsSubmitting(false);
-      onContinue();
+      onContinue(email.trim());
     }, SUBMIT_DEMO_MS);
   };
 
@@ -1942,10 +1945,22 @@ const METHOD_DISPLAY: Record<MfaMethod, string> = {
 
 // ─── Login state router ──────────────────────────────────────────────────────
 
+const MOCK_USER_NAME = "Joel Agboola";
+const MOCK_USER_EMAIL = "joel@veritasor.example";
+
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const forcedState = searchParams.get("state");
+  const location = useLocation();
+  // `?next=` comes from RequireAuth; `state.from` from Layout's session-expiry redirect.
+  const from = (location.state as { from?: Partial<Location> } | null)?.from;
+  const nextPath = safeNextPath(
+    searchParams.get("next") ??
+      (from?.pathname ? `${from.pathname}${from.search ?? ""}${from.hash ?? ""}` : null),
+  );
+  const { signIn } = useAuth();
+  const [pendingEmail, setPendingEmail] = useState("");
 
   const [state, setState] = useState<LoginState>(() => {
     if (forcedState === "mfa-recover" || forcedState === "mfa-recovery")
@@ -1963,11 +1978,17 @@ export default function Login() {
     navigate("/login", { replace: true });
   };
 
+  // Mock session: only non-secret display data is recorded.
+  const completeSignIn = () => {
+    signIn({ name: MOCK_USER_NAME, email: pendingEmail || MOCK_USER_EMAIL });
+    navigate(nextPath, { replace: true });
+  };
+
   if (state === "mfa-recovery") {
     return (
       <MfaRecoveryFlowState
         onBack={returnToCredentials}
-        onSuccess={() => navigate("/dashboard")}
+        onSuccess={completeSignIn}
       />
     );
   }
@@ -1976,10 +1997,17 @@ export default function Login() {
     return (
       <MfaChallengeState
         onBack={returnToCredentials}
-        onSuccess={() => navigate("/dashboard")}
+        onSuccess={completeSignIn}
       />
     );
   }
 
-  return <CredentialsState onContinue={() => setState("mfa-challenge")} />;
+  return (
+    <CredentialsState
+      onContinue={(email) => {
+        setPendingEmail(email);
+        setState("mfa-challenge");
+      }}
+    />
+  );
 }

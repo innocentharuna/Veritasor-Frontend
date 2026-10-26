@@ -4,6 +4,8 @@ import { ToastProvider } from './components/ToastContext'
 import Layout from './components/Layout'
 import { CookieConsentProvider } from './components/CookieConsentContext'
 import { AttestationsProvider } from './state/attestations'
+import { AuthProvider } from './auth/AuthContext'
+import RequireAuth from './auth/RequireAuth'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -37,7 +39,11 @@ const router = createBrowserRouter([
   { path: '/onboarding', element: <OnboardingWizard /> },
   { path: '/500', element: <ServerError /> },
   {
-    element: <Layout />,
+    element: (
+      <RequireAuth>
+        <Layout />
+      </RequireAuth>
+    ),
     children: [
       { path: 'dashboard', element: <Dashboard /> },
       { path: 'attestations', element: <Attestations /> },
@@ -71,11 +77,13 @@ export default function App() {
   return (
     <LocaleProvider>
       <ToastProvider>
-        <AttestationsProvider>
-          <CookieConsentProvider>
-            <RouterProvider router={router} future={{ v7_startTransition: true }} />
-          </CookieConsentProvider>
-        </AttestationsProvider>
+        <AuthProvider>
+          <AttestationsProvider>
+            <CookieConsentProvider>
+              <RouterProvider router={router} future={{ v7_startTransition: true }} />
+            </CookieConsentProvider>
+          </AttestationsProvider>
+        </AuthProvider>
       </ToastProvider>
     </LocaleProvider>
   )

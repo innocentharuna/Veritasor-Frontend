@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import LocalePicker from "./LocalePicker/LocalePicker";
 import { useEnvironment } from "./EnvironmentContext";
 import ConfirmDialog from "./ConfirmDialog";
+import { getInitials, useAuth } from "../auth/AuthContext";
 
 export interface WorkspaceMetadata {
   id: string;
@@ -76,10 +77,10 @@ export default function TopAppBar({
   workspaces = DEFAULT_WORKSPACES,
   initialWorkspace = DEFAULT_WORKSPACES[0]?.id,
   initialEnvironment = "testnet",
-  userName = "Joel Agboola",
-  userInitials = "JA",
+  userName: userNameProp,
+  userInitials: userInitialsProp,
   userAvatar,
-  userEmail,
+  userEmail: userEmailProp,
   onSidebarToggle,
   sidebarOpen = false,
   onSearchClick,
@@ -103,6 +104,10 @@ export default function TopAppBar({
   const [announcement, setAnnouncement] = useState("");
   const intl = useIntl();
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const userName = userNameProp ?? user?.name ?? "Joel Agboola";
+  const userInitials = userInitialsProp ?? getInitials(userName);
+  const userEmail = userEmailProp ?? user?.email;
   const { environment, setEnvironment } = useEnvironment();
   const [confirmMainnetOpen, setConfirmMainnetOpen] = useState(false);
   const confirmMainnetTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -345,6 +350,12 @@ export default function TopAppBar({
   function handleAccountNavigate(path: string) {
     closeAccountMenu();
     navigate(path);
+  }
+
+  function handleSignOut() {
+    setAccountOpen(false);
+    signOut();
+    navigate("/login", { replace: true });
   }
 
   const hasDraftContent = useMemo(
@@ -1030,11 +1041,11 @@ export default function TopAppBar({
                     role="menuitem"
                     tabIndex={0}
                     className="disclosure-item disclosure-item-danger"
-                    onClick={closeAccountMenu}
+                    onClick={handleSignOut}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        closeAccountMenu();
+                        handleSignOut();
                       }
                     }}
                   >
